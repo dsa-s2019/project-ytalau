@@ -63,4 +63,4 @@ dat <- dat[!duplicated(dat[, -c("ID")]), ]
 sum(duplicated(dat[, .("Address", "Town", "ListYear")]))
 ## 0
 
-saveRDS(dat, file = "../dat/dat_clean.RData")
+save(dat, file = "../dat/dat_clean.RData")
