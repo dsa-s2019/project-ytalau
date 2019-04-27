@@ -9,24 +9,68 @@ library(processx)
 ## load the data
 
 
-load("../dat/county.RData")
+load( "../dat/dat_combine.RData")
 
 load("../dat/dat_clean.RData")
 
-## freq
+load("../dat/dat_county.RData")
 
-dat <- dat[PropertyType == "Residential", ]
+## plot freq
 
-dat_df <- as.data.table(table(dat$Town, dat$ListYear))
+dat_wide <- spread(dat_county, ListYear, Freq)
 
-colnames(dat_df) <- c("Town", "ListYear", "Freq")
+rownames(dat_wide) <- dat_wide$county
 
-dat_wise <- spread(dat_df, ListYear, Freq)
+dat_wide <- dat_wide[, county := NULL]
 
-rownames(dat_wise) <- dat_wise$Town
 
-dat_wise <- dat_wise[, Town := NULL]
+p <- plot_ly(x = colnames(dat_wide),
+             y = rownames(dat_wide),
+             z = as.matrix(dat_wide),
+             type = "heatmap",
+             colors = "Purples",
+             colorbar = list(
+                 title = "Amount of Sales"
+             )) %>%
+    layout(xaxis = list(
+               title = "Year"
+           ),
+           yaxis = list(
+               title = "County"
+           ))
 
+orca(p, "../report/heatmap_freq.png")
+
+## plot the rate
+
+
+combine_wide <- spread(dat_combine[, .(county, ListYear, rate)],
+                       ListYear, rate)
+
+rownames(combine_wide) <- combine_wide$county
+
+combine_wide <- combine_wide[, county := NULL]
+
+
+p <- plot_ly(x = colnames(combine_wide),
+             y = rownames(combine_wide),
+             z = as.matrix(combine_wide),
+             type = "heatmap",
+             colors = "Purples",
+             colorbar = list(
+                 title = "Rate of Sales"
+             )) %>%
+    layout(xaxis = list(
+               title = "Year"
+           ),
+           yaxis = list(
+               title = "County"
+           ))
+
+orca(p, "../report/heatmap_rate.png")
+
+
+## plot the median prices
 dat_med <- dat[,  median(AssessedValue), by = .(ListYear, Town)]
 
 dat_med <- spread(dat_med, ListYear, V1)
