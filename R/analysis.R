@@ -7,7 +7,7 @@ library(spdep)
 library(maptools)
 library(maps)
 
-
+set.seed(1234)
 ## load the data set
 
 load("../dat/dat_combine.RData")
@@ -30,8 +30,12 @@ ct.poly <- map2SpatialPolygons(ct.county, IDs = county.id)
 W.nb <- poly2nb(ct.poly, row.names = dat.av$rate.mean)
 W <- nb2mat(W.nb, style = "B")
 
+W.ct <- poly2nb(ct.poly)
+W.neigh <- nb2mat(W.ct, style = 'B')
+save(W.neigh, file = "../dat/w_neigh.RData")
 
 ## spatially varying linear time trend
+#--chunk-fittedmodel
 
 setorder(dat_combine, ListYear)
 
@@ -45,6 +49,7 @@ model1 <- ST.CARsepspatial(formula = formula,
                            n.sample = 220000,
                            thin = 10)
 
+#--chunk-fittedmodel
 trend.mean <- array(NA, c(16, 3))
 
 trend.sd <- array(NA, c(16, 3))
@@ -60,30 +65,30 @@ trend.mean[i, ] <- quantile(apply(posterior, 1, mean),
 trend.sd[i, ] <- quantile(apply(posterior, 1, sd),
                           c(0.5, 0.025, 0.975))}
 
-png('results.png')
-par(mfrow = c(2,1))
+png('../report/results_a.png')
 plot(jitter(as.numeric(dat_combine$ListYear)),
             dat_combine$rate,
             pch = 19,
             cex = 0.2,
             col="blue",
             xlab="Year",
-            main="(a)",
+            main="Average Sale Rates (a)",
             ylab="Average sales rate",
-            ylim=c(0, 0.20),
+            ylim=c(0, 0.15),
             cex.axis=1.5,
             cex.lab=1.5,
             cex.main=1.5)
 lines(2001:2016, trend.mean[ ,1], col="red", type="l")
 lines(2001:2016, trend.mean[ ,2])
 lines(2001:2016, trend.mean[ ,3])
+dev.off()
 
-
+png('../report/results_b.png')
 plot(2001:2016, trend.sd[ ,1],
      col = "red",
      type = "l",
      xlab = "Year",
-     main = "(b)",
+     main = "Spatial Variations (b)",
      ylab = "Spatial standard deviation",
      ylim = c(0, 0.15),
      cex.axis = 1.5,
