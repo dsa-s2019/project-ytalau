@@ -1,0 +1,197 @@
+---
+title: "Exploring Spatio-Temporal Pattern of CT Housing"
+author: "Yuen Tsz Abby Lau"
+output: 
+    beamer_presentation:
+        pandoc_args: "--self-contained"
+---
+
+## Challenge Description
+
+Goals:
+
+- Identify and analyze the spatio-temporal trend for average CT housing sale 
+rates over  years
+    - estimate overall temporal trend
+    - detect spatial variation over time
+
+
+Proposed Method
+
+- Spatio-Temporal Bayesian Hierarchical Model 
+ 
+
+
+## Primary Data Set and Additional Data Set
+
+The primary data set consists of individual sales records for each town in
+CT from year 2001 to 2016
+
+- Duplicate claims are removed
+- Almost all the towns have 0 sales record in at least one year; in other
+    words, there are missing values. No pattern or reason is detected for the
+    missingness. Thus, missing completely at random is assumed here.
+- Data is then aggregated by county and list year to get the sales numbers
+
+
+
+Additional data set is used to compute the average sale rate for each county 
+and each year.
+
+- Annual Housing Inventory by Town from ct.gov
+    - which has the housing inventory from 2000 to 2017 based
+        on census 2000 and 2010 data
+- The average sales rate for county in year is then calculated 
+as $$\frac{\text{number of sale records}}{\text{number of properties}}$$
+
+
+## Median Housing Price by Town
+
+![](heatmap_med.png)
+
+
+## Number of Sales by County
+
+![](heatmap_freq.png)
+
+
+## Average Sales Rate
+
+![](heatmap_rate.png)
+
+
+## Observations from the Plot
+
+- Many missing values
+
+- Rates were higher for all counties for early 2000s
+
+- Rates reached their minimum around 2007 and 2008, when the financial 
+crisis occurred
+
+- Rates varied differently across counties
+
+- Similarities existed for rates from close counties in consecutive time periods
+
+## Spatio-Temporal Bayesian Hierarchical Model
+
+- Bayesian Model is capable of modeling the spatio-temporal autocorrelation via
+sets of autocorrelated random effects
+
+-  Napier *et.al* (2016) proposed a model which renders a common temporal trend 
+but varying spatial surfaces, which would be helpful to understand the 
+spatio-temporal CT Housing sale rates.
+
+- This method can be easily implemented in R using the package `CARBayesST`, a 
+package for spatio-temporal areal unit modeling with conditional autoregressive 
+priors
+
+## Model Specification
+
+
+$$\psi_{kt} =  \phi_{kt} + \delta_t $$
+
+$$\phi_kt |\boldsymbol{\phi}_{-kt},\boldsymbol{W} \sim N(\frac{\rho_{S}\sum^K_{j=1}w_{kj}\phi_j}{\rho_{S}\sum^K_{j=1}w_{kj} + 1 - \rho_{S}}, \frac{\tau^2_{S}}{\rho_{S}\sum^K_{j=1}w_{kj} + 1 - \rho_{S}})$$
+
+
+$$\delta_t |\boldsymbol{\delta}_{-t},\boldsymbol{D} \sim N(\frac{\rho_{T}\sum^N_{j=1}d_{tj}\delta_j}{\rho_{T}\sum^N_{j=1}d_{tj} + 1 - \rho_{T}}, \frac{\tau^2_{T}}{\rho_{T}\sum^K_{j=1}w_{kj} + 1 - \rho_{T}})$$
+
+$$\tau^2_{1}, {\dots} ,\tau^2_N, \tau^2_{T} \sim Inverse-Gamma(a, b)$$
+
+
+$$\rho_{S} , \rho_{T} \sim Uniform(0,1)$$
+
+
+
+
+
+
+## Neighborhood Matrix
+
+```{r, echo = FALSE}
+load("../dat/w_neigh.RData")
+suppressPackageStartupMessages(library(ggplot2))  
+suppressPackageStartupMessages(library(sp))
+suppressPackageStartupMessages(library(maps))
+getLabelPoint <- # Returns a county-named list of label points
+function(county) {Polygon(county[c('long', 'lat')])@labpt}
+
+df <- map_data('county', 'connecticut')              
+centroids <- by(df, df$subregion, getLabelPoint)     # Returns list
+centroids <- do.call("rbind.data.frame", centroids)  # Convert to Data Frame
+names(centroids) <- c('long', 'lat')                 # Appropriate Header
+
+map('county', 'connecticut')
+text(centroids$long, 
+     centroids$lat, 
+     paste(rownames(centroids), 
+           rownames(W.neigh)), 
+     offset=0, cex=1)
+```
+
+## Neighborhood Matrix
+
+```{r, echo = FALSE, comment = ""}
+
+W.neigh
+```
+
+
+
+## Code 
+
+```{r, echo = FALSE, comment = ""}
+test <- readLines("../R/analysis.R")
+cat_lines <- function(pattern, file){
+  pattern <- paste0("#--chunk-", pattern)
+  id <- grep(pattern, file)
+  id[1] <- id[1]+ 1L
+  id[2] <- id[2]- 1L
+  cat(file[id[1] : id[2]], sep = "\n")
+}
+cat_lines("fittedmodel", test)
+```
+
+## Quantifying Region-Wide Average Sale Rates (Mean of $\theta_{kt}$ over space)
+
+![](../report/results_a.png)
+
+## Quantifying the Spatial Variation (Stardard Deviation of $\theta_{kt}$ over space)
+
+![](../report/results_b.png)
+
+## Variations in Spatial Patterns
+
+![](../report/heatmap_posterior.png)
+
+## Summary and Next Steps
+
+- Again, the previous picture (a) show that the average sales rate started to 
+drop since 2005 and has reached its minimum during the financial crisis. 
+It also starts to climb up recently
+
+- (b) shows the spatial variations, which have similar trends
+
+- Spatial patterns changed in 2005, 2008, and 2013
+
+- Incorporate covariates could be helpful to understand the trends
+
+## Repository and References
+
+Click *[here](https://ytalau@bitbucket.org/ytalau/housing_ct.git)* for source code
+
+
+References:
+
+Napier G, Lee D, Robertson C, Lawson A, Pollock K (2016). “A Model to Estimate the Impact of Changes in MMR Vaccination Uptake on Inequalities in Measles Susceptibility in Scotland.” *Statistical Methods in Medical Research*, 25, 1185–1200.
+
+Lee D, Rushworth A, Napier G (2018). “Spatio-Temporal Areal Unit Modeling in R with
+Conditional Autoregressive Priors Using the CARBayesST Package.” _Journal of Statistical
+Software_, *84*(9), 1-39. doi: 10.18637/jss.v084.i09 (URL:
+http://doi.org/10.18637/jss.v084.i09).
+
+
+Wikle, C.K., Zammit-Mangion, A., and Cressie, N. (2019). Spatio-Temporal Statistics with R. Chapman & Hall/CRC, Boca Raton, FL.
+
+
+
